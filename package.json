@@ -2,7 +2,7 @@
   "name": "simplevtt",
   "productName": "simplevtt",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "Simple virtual tabletop",
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",
@@ -45,7 +45,11 @@
     }
   },
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.0"
+    "@electron/remote": "^2.0.8",
+    "dialog": "^0.3.1",
+    "electron-squirrel-startup": "^1.0.0",
+    "fs": "^0.0.1-security",
+    "jquery": "^3.6.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.63",
@@ -53,6 +57,8 @@
     "@electron-forge/maker-rpm": "^6.0.0-beta.63",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.63",
     "@electron-forge/maker-zip": "^6.0.0-beta.63",
-    "electron": "17.2.0"
+    "electron": "17.2.0",
+    "electron-rebuild": "^3.2.7",
+    "jquery": "^3.6.0"
   }
 }
