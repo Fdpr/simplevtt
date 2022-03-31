@@ -1,4 +1,5 @@
-const { app, BrowserWindow, fs } = require('electron');
+const { app, BrowserWindow, fs, globalShortcut } = require('electron');
+const electronLocalshortcut = require('electron-localshortcut')
 const { webContents } = require('electron')
 require('@electron/remote/main').initialize()
 const path = require('path');
@@ -10,9 +11,11 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+let mainWindow;
+
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -20,6 +23,21 @@ const createWindow = () => {
       contextIsolation: false,
   }
   });
+
+  mainWindow.on('focus', (event) => {
+    electronLocalshortcut.register(mainWindow, ['CommandOrControl+R','CommandOrControl+Shift+R', 'F5'], () => {})
+  })
+
+  mainWindow.on('blur', (event) => {
+    electronLocalshortcut.unregisterAll(mainWindow)
+  })
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.control && input.key.toLowerCase() === 'r') {
+      event.preventDefault()
+    }
+  })
+
   require("@electron/remote/main").enable(mainWindow.webContents)
 
   // and load the index.html of the app.
@@ -51,5 +69,15 @@ app.on('activate', () => {
   }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
+app.on('browser-window-focus', function () {
+  globalShortcut.unregister("CommandOrControl+R");
+  globalShortcut.unregister("F5");
+});
+
+app.on('browser-window-blur', function () {
+  globalShortcut.unregister('CommandOrControl+R');
+  globalShortcut.unregister('F5');
+});
+
+
+
