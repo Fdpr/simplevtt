@@ -1,0 +1,21 @@
+{
+    "background": null,
+    "backgroundColor": "rgb(255, 255, 255)",
+    "gridSize": 50,
+    "showGrid": true,
+    "convert": 0.3048,
+    "metric": "m",
+    "scrollSpeed": 0.0005,
+    "heroes": [
+        {
+            "name": "Günther",
+            "src": "heroes/man.png",
+            "scale": 1
+        },
+        {
+            "name": "Pferd",
+            "src": "heroes/horse.png",
+            "scale": 1
+        }
+    ]
+}
