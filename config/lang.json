@@ -1,3 +1,9 @@
 {
-    "fileOpen": "Datei öffnen"
+    "fileOpen": "Datei öffnen",
+    "configOpen": "SimpleVTT-Datei öffnen",
+    "enemy": "Gegner",
+    "resourceError": "Die Ressource existiert nicht!",
+    "resourceErrorTitle": "Datei nicht gefunden",
+    "okay": "OK",
+    "token": "Token"
 }

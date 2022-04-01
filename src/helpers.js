@@ -36,6 +36,17 @@ function clearCanvas(){
     // ctx.clearRect(0, 0, x, y)
 }
 
+// sets the background Color of the Canvas
+function fillCanvas(color){
+    let temp = ctx.fillStyle;
+    ctx.fillStyle = color;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    ctx.fillStyle = temp;
+}
+
 // Resizes Canvas if window is resized
 function resizeCanvas(){
     ctx.save();
@@ -61,3 +72,11 @@ function getPixel(img, x, y, scale) {
     let pixelData = canv.getContext('2d').getImageData(x, y, 1, 1).data;
     return pixelData;
 }
+
+// rounds away from Zero
+function roundFromZero(r) {
+    if (r < 0)
+        return Math.round(r)-1;
+    else
+        return Math.round(r)+1;
+ }

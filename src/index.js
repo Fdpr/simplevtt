@@ -4,6 +4,8 @@ const { webContents } = require('electron')
 require('@electron/remote/main').initialize()
 const path = require('path');
 
+app.commandLine.appendSwitch('disable-pinch');
+
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
