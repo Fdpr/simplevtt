@@ -21,10 +21,7 @@ var background = new Image();
 background.src = "data:image/xxx;base64," + fs.readFileSync("./res/background.png").toString('base64');
 var mode = MODES.none;
 
-var shiftPressed = false,
-    ctrlPressed = false,
-    altPressed = false,
-    spacePressed = false;
+var spacePressed = false;
 
 // Handles all the rendering
 function draw(){
@@ -93,12 +90,6 @@ function keyPressed(event){
     let name = event.key;
     let code = event.code;
 
-    if (name == "Control")
-        ctrlPressed = true;
-    if (name == "Shift")
-        shiftPressed = true;
-    if (name == "Alt")
-        altPressed = true;
     if (code == "Space")
         spacePressed = true;
 
@@ -137,17 +128,17 @@ function keyPressed(event){
         }
 
         // Add an enemy
-        if (/^[1-9]$/i.test(name) && !shiftPressed){
+        if (/^[1-9]$/i.test(name) && !event.shiftKey){
             addEnemy(name);
             draw();
-        } else if (code.startsWith("Digit") && !code.endsWith("0") && shiftPressed){
+        } else if (code.startsWith("Digit") && !code.endsWith("0") && event.shiftKey){
             addHero(code.charAt(code.length - 1))
             draw();
         }
 
         // Change grid size
         let gridDelta = 1;
-        if (ctrlPressed)
+        if (event.ctrlKey)
             gridDelta *= 5;
         if (code == "BracketRight" && event.altKey)
         {
@@ -167,7 +158,7 @@ function keyPressed(event){
 
         // Pan Screen with Arrows
         let panning = mouseToTransform(5,5, true)["x"];
-        if (ctrlPressed)
+        if (event.ctrlKey)
             panning *= 10;
         if (name == "ArrowLeft")
             ctx.translate(panning, 0)
@@ -179,7 +170,6 @@ function keyPressed(event){
             ctx.translate(0, -panning)
         // Start measuring
         if (code == "KeyM"){
-            console.log("Hi");
             measurex = mousex;
             measurey = mousey;
             mode = MODES.measure;
@@ -196,14 +186,7 @@ function keyReleased(event){
 
     if (code == "KeyM" && mode == MODES.measure){
         mode = MODES.none;
-        console.log("Tschüss!");
     }
-    if (name == "Control")
-        ctrlPressed = false;
-    if (name == "Shift")
-        shiftPressed = false;
-    if (name == "Alt")
-        altPressed = false;
     if (code == "Space")
         spacePressed = false;
     draw();
@@ -223,7 +206,6 @@ function addEnemy(n){
 
 // Puts a hero token from the config file on the table, if available 
 function addHero(n){
-    console.log("Hi")
     if (config.heroes){
         let nParse = parseInt(n)
         if (config.heroes.length >= nParse){
@@ -339,12 +321,12 @@ function zoom(event){
     draw();
 }
 
-function mousedown(){
+function mousedown(event){
     if (mode == MODES.none){
-        if(ctrlPressed || spacePressed){
+        if(event.ctrlKey || spacePressed){
             mode = MODES.pan;
             draw();
-        } else if (altPressed) {
+        } else if (event.altKey) {
             mode = MODES.gridDrag;
             draw();
         }
@@ -399,4 +381,5 @@ window.addEventListener('keydown', keyPressed);
 window.addEventListener('keyup', keyReleased);
 window.addEventListener('mousedown', mousedown);
 window.addEventListener('mouseup', mouseup);
+window.addEventListener('blur', (event) => {spacePressed = false;});
 window.onwheel = zoom;
