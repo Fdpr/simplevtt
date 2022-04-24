@@ -5,7 +5,7 @@
     "gridOffsetX": 0,
     "gridOffsetY": 0,
     "gridColor": "black",
-    "convert": 0.3048,
+    "convert": 0.3,
     "metric": "m",
     "measureColor": "red",
     "aoeStroke": "rgba(255, 0, 0, 1)",

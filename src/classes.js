@@ -49,6 +49,7 @@ class CharToken {
         this.image.width = Math.sqrt(2*this.longerSide*this.longerSide);
         this.image.height = this.image.width;
         let ictx = this.image.getContext("2d");
+        ictx.imageSmoothingQuality = "high";
         ictx.globalAlpha = 1;
         ictx.translate(this.image.width/2, this.image.height/2);
         ictx.rotate(this.rot);
@@ -60,6 +61,7 @@ class CharToken {
             buffer.width = Math.sqrt(2*this.longerSide*this.longerSide);
             buffer.height = this.image.width;
             let bx = buffer.getContext("2d");
+            bx.imageSmoothingQuality = "high";
             bx.translate(this.image.width/2, this.image.height/2);
             bx.rotate(this.rot);
             bx.translate(-(this.image.width/2), -(this.image.height/2));

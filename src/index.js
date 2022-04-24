@@ -42,7 +42,7 @@ const createWindow = () => {
     }
   })
 
-  // mainWindow.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
   require("@electron/remote/main").enable(mainWindow.webContents)
 

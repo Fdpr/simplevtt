@@ -1,6 +1,7 @@
 const fs = require('fs')
 
 var { webFrame, clipboard } = require('electron');
+var { webContents } = require("@electron/remote");
 
 webFrame.setVisualZoomLevelLimits(1, 1)
 
@@ -130,7 +131,7 @@ function renderSquare(){
     
     dist = ( dist / config.gridSize ) * 5 * config.convert; 
     
-    renderTextBox(lang.length + ": " + dist.toFixed(2) + " " + config.metric);
+    renderTextBox(lang.length + ": " + (dist * 2).toFixed(2) + " " + config.metric);
 
 }
 
@@ -242,6 +243,11 @@ function keyPressed(event){
     
     // Rotating and scaling are allowed while dragging
     if (mode == MODES.none || mode == MODES.drag){
+
+        if (code == "KeyD" && event.ctrlKey && event.shiftKey){
+            webContents.getFocusedWebContents().openDevTools();
+            // this.webContents.openDevTools();
+        }
 
         // Rotation of Token
         if (code == "KeyR")
