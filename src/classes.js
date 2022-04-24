@@ -11,15 +11,23 @@ class CharToken {
     isSelected = false;
 
     constructor(image, name, grid, scale){
-        this.base = image;
-        this.image = image;
         this.name = name;
         if(scale)
             this.scale = scale;
+        this.refreshImage(image);
+        if (scale == -1)
+            this.scale = this.longerSide / config.gridSize;
+        this.updateGrid(grid);
+    }
+
+    // Sets the image of the token and refreshes accordingly
+    refreshImage(image){
+        console.log("Yo")
+        this.base = image;
+        this.image = image;
         this.longerSide = this.base.width;
         if (this.base.width < this.base.height)
             this.longerSide = this.base.height;
-        this.updateGrid(grid);
     }
 
     // Adjusts base scale of the image to adhere to the grid
@@ -63,10 +71,6 @@ class CharToken {
     }
 }
 
-class Background{
-
-}
-
 // All the modes that the program can be in, possibly blocking
 const MODES = {none: 0, // No continuous action is happening, nothing is being blocked
                drag: 1, // A token is being dragged, every action should be blocked
@@ -75,5 +79,6 @@ const MODES = {none: 0, // No continuous action is happening, nothing is being b
                circle: 4,
                cone: 5,
                cube: 6,
-               gridDrag: 7 // User is dragging the grid, every actio nshould be blocked
+               gridDrag: 7, // User is dragging the grid, every action should be blocked
+               backgroundDrag: 8 // User is dragging a background image, every action should be blocked
             };

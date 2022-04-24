@@ -50,7 +50,8 @@
     "electron-localshortcut": "^3.2.1",
     "electron-squirrel-startup": "^1.0.0",
     "fs": "^0.0.1-security",
-    "jquery": "^3.6.0"
+    "jquery": "^3.6.0",
+    "serialijse": "^0.3.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.63",

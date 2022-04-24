@@ -1,9 +1,14 @@
 {
     "fileOpen": "Datei öffnen",
-    "configOpen": "SimpleVTT-Datei öffnen",
+    "configOpen": "SimpleVTT-Konfigurationsdatei öffnen",
+    "vttSave": "VTT-Zustand speichern",
     "enemy": "Gegner",
     "resourceError": "Die Ressource existiert nicht!",
     "resourceErrorTitle": "Datei nicht gefunden",
+    "JSONError": "Die Konfiguration konnte nicht geladen werden. Möglicherweise ist die Datei nicht wohlgeformt.",
+    "JSONErrorTitle": "Parsing-Error",
     "okay": "OK",
-    "token": "Token"
+    "token": "Token",
+    "tokenName": "Token-Bild",
+    "configName": "Konfigurationsdatei"
 }

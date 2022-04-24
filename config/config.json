@@ -1,5 +1,4 @@
 {
-    "background": null,
     "backgroundColor": "rgb(100, 100, 100)",
     "gridSize": 50,
     "showGrid": true,
@@ -7,17 +6,18 @@
     "gridOffsetY": 0,
     "convert": 0.3048,
     "metric": "m",
-    "scrollSpeed": 0.001,
-    "heroes": [
-        {
+    "scrollSpeed": 0.005,
+    "gridScrollSpeed": 0.005,
+    "heroes": {
+        "1": {
             "name": "Günther",
             "src": "man.png",
             "scale": 1
         },
-        {
+        "2": {
             "name": "Pferd",
             "src": "horse.png",
             "scale": 1
         }
-    ]
+    }
 }
