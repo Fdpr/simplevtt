@@ -1,0 +1,17 @@
+{
+	"backgroundColor": "black",
+	"gridColor": "white",
+	"enemies": {
+		"9": {
+			"name": "Devil",
+			"src": "devil.png",
+			"scale": 1.5
+		}
+	},
+	"localHeroes": {
+		"3": {
+			"name": "Angel fighter",
+			"src": "angel.png"
+		}
+	}
+}

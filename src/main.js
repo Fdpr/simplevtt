@@ -1,8 +1,6 @@
-const { dialog } = require('@electron/remote');
-// var s = require("serialijse");
 const fs = require('fs')
 
-var webFrame = require('electron').webFrame;
+var { webFrame, clipboard } = require('electron');
 
 webFrame.setVisualZoomLevelLimits(1, 1)
 
@@ -12,11 +10,12 @@ var config = loadConfig();
 var canvas = document.getElementById("canvas");
 canvas.style.backgroundColor = config.backgroundColor;
 var ctx = canvas.getContext("2d");
-ctx.fillStyle = "rgb(20, 20, 20)"
+ctx.fillStyle = config.backgroundColor;
 ctx.imageSmoothingQuality = "high"; // Better interpolation for image rendering
 
 var [mousex, mousey] = [0, 0]; // Mouse coordinates are stored here
 var [measurex, measurey] = [0, 0]; // Starting coordinates for measurement
+var measureWidth = 0; // measure width for TextBox so that it doesn't jump back
 
 var tokens = [] // List of Tokens
 var active = null // current Token
@@ -27,6 +26,8 @@ var activeBackground = null // current background image
 var mode = MODES.none;
 
 var spacePressed = false; // needs to be kept to track dragging mode triggered by space bar
+
+var zoomCounter = 0; // to show scale a few Frames after scale is complete
 
 // Handles all the rendering
 function draw(){
@@ -41,6 +42,17 @@ function draw(){
 
     if (mode == MODES.measure)
         renderMeasure();
+    else if (mode == MODES.cube)
+        renderSquare();
+    else if (mode == MODES.circle)
+        renderCircle();
+    else if (mode == MODES.cone)
+        renderCone();
+
+    if (zoomCounter > 0){
+        zoomCounter--;
+        renderTextBox(lang.zoom + ": " + getTransformScale(ctx.getTransform()).toFixed(2));
+    }
 }
 
 // Renders a token onto the Canvas
@@ -55,6 +67,7 @@ function renderBackground(){
         renderToken(bgr);
     // Draw the Grid
     if (config.showGrid){
+        ctx.fillStyle = config.gridColor;
         let {x: origx, y:origy} = mouseToTransform(0, 0);
         let {x: edgex, y:edgey} = mouseToTransform(canvas.width, canvas.height);
         let gridWidth = mouseToTransform(1, 1, true)["x"];
@@ -83,12 +96,136 @@ function renderMeasure(){
     let {x: finishx, y:finishy} = mouseToTransform(mousex, mousey);
     ctx.lineTo(finishx, finishy);
     ctx.closePath();
+    ctx.lineWidth = mouseToTransform(2, 2, true).x;
+    ctx.strokeStyle = config.measureColor;
     ctx.stroke();
-    let dist = Math.sqrt(((finishx-origx) * (finishx-origx)) + ((finishy-origy) * (finishy-origy)))
+    let dist = magnitude(finishx-origx, finishy-origy);
     dist = ( dist / config.gridSize ) * 5 * config.convert; 
-    ctx.save()
+    
+    renderTextBox(lang.distance + ": " + dist.toFixed(2) + " " + config.metric);
+
+}
+
+function renderSquare(){
+    let {x: origx, y:origy} = mouseToTransform(measurex, measurey);
+    let {x: finishx, y:finishy} = mouseToTransform(mousex, mousey);
+    let xdist = (finishx-origx), ydist = (finishy-origy);
+    let dist = magnitude(xdist, ydist);
+    let angle = Math.acos((xdist * 1) / (magnitude(xdist, ydist)));
+    if (ydist < 0)
+        angle = Math.PI * 2 - angle;
+    ctx.lineWidth = mouseToTransform(2, 2, true).x;
+    ctx.strokeStyle = config.aoeStroke;
+    ctx.fillStyle = config.aoeFill;
+    ctx.beginPath();
+    ctx.moveTo(origx + Math.cos(angle) * dist - Math.sin(angle) * dist, origy + Math.sin(angle) * dist + Math.cos(angle) * dist);
+    for (let i = 0; i < 4; i++){
+        angle += Math.PI / 2;
+        ctx.lineTo(origx + Math.cos(angle) * dist - Math.sin(angle) * dist, origy + Math.sin(angle) * dist + Math.cos(angle) * dist);
+    }
+    ctx.closePath();
+
+    ctx.fill();
+    ctx.stroke();
+    
+    dist = ( dist / config.gridSize ) * 5 * config.convert; 
+    
+    renderTextBox(lang.length + ": " + dist.toFixed(2) + " " + config.metric);
+
+}
+
+function renderCircle(){
+    let {x: origx, y:origy} = mouseToTransform(measurex, measurey);
+    let {x: finishx, y:finishy} = mouseToTransform(mousex, mousey);
+    let xdist = (finishx-origx), ydist = (finishy-origy);
+    let dist = magnitude(xdist, ydist);
+    ctx.lineWidth = mouseToTransform(2, 2, true).x;
+    ctx.strokeStyle = config.aoeStroke;
+    ctx.fillStyle = config.aoeFill;
+    ctx.beginPath();
+    ctx.arc(origx, origy, dist, 0, Math.PI * 2)
+    ctx.closePath();
+
+    ctx.fill();
+    ctx.stroke();
+    
+    dist = ( dist / config.gridSize ) * 5 * config.convert; 
+    
+    renderTextBox(lang.radius + ": " + (dist * 2).toFixed(2) + " " + config.metric);
+}
+
+function renderCone(){
+    let {x: origx, y:origy} = mouseToTransform(measurex, measurey);
+    let {x: finishx, y:finishy} = mouseToTransform(mousex, mousey);
+    let xdist = (finishx-origx), ydist = (finishy-origy);
+    let dist = magnitude(xdist, ydist);
+    let angle = Math.acos((xdist * 1) / (magnitude(xdist, ydist)));
+    if (ydist < 0)
+        angle = Math.PI * 2 - angle;
+    angle += Math.PI / 4 + 0.1;
+    let x1 = finishx + Math.cos(angle) * (dist/2) - Math.sin(angle) * (dist / 2), 
+        y1 = finishy + Math.sin(angle) * (dist / 2) + Math.cos(angle) * (dist / 2);
+
+    angle -= Math.PI + 0.2;
+    let x2 = finishx + Math.cos(angle) * (dist/2) - Math.sin(angle) * (dist / 2), 
+        y2 = finishy + Math.sin(angle) * (dist / 2) + Math.cos(angle) * (dist / 2);
+
+
+    ctx.lineWidth = mouseToTransform(2, 2, true).x;
+    ctx.strokeStyle = config.aoeStroke;
+    ctx.fillStyle = config.aoeFill;
+    ctx.beginPath();
+    ctx.moveTo(origx, origy)
+    ctx.lineTo(x1, y1);
+    ctx.quadraticCurveTo(finishx + (finishx - origx) * 0.07, finishy + (finishy - origy) * 0.07, x2, y2);
+    ctx.closePath();
+
+    ctx.fill();
+    ctx.stroke();
+    
+    dist = ( dist / config.gridSize ) * 5 * config.convert; 
+    
+    renderTextBox(lang.distance + ": " + dist.toFixed(2) + " " + config.metric);
+
+}
+
+function renderTextBox(text){
+    ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillText(dist + " " + config.metric, mousex, mousey);
+
+    ctx.font = config.textSize + "px " + config.textStyle;
+
+    let measure = ctx.measureText(text);
+
+    let width = Math.max(measure.width + 10, measureWidth), height = 26;
+    measureWidth = Math.max(width, measureWidth)
+    let x = 5, y = 5;
+
+    ctx.strokeStyle = config.textBoxStroke
+    ctx.fillStyle = config.textBoxFill;
+    ctx.lineWidth = 2;
+
+    let radius = 5;
+    radius = {tl: radius, tr: radius, br: radius, bl: radius};
+
+    ctx.beginPath();
+    ctx.moveTo(x + radius.tl, y);
+    ctx.lineTo(x + width - radius.tr, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+    ctx.lineTo(x + width, y + height - radius.br);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+    ctx.lineTo(x + radius.bl, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+    ctx.lineTo(x, y + radius.tl);
+    ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+    ctx.closePath();
+
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = config.textColor;
+    ctx.fillText(text, 10, 23);
+
     ctx.restore();
 }
 
@@ -108,18 +245,19 @@ function keyPressed(event){
 
         // Rotation of Token
         if (code == "KeyR")
-            rotateToken(true, event.shiftKey);
+            rotateToken(true, event.shiftKey, event.ctrlKey);
 
         // Counter-Rotation of Token
         else if (code == "KeyF")
-            rotateToken(false, event.shiftKey);
+            rotateToken(false, event.shiftKey, event.ctrlKey);
         
         // Scale up Token
         else if (code == "BracketRight" && !event.altKey)
             scaleToken(true, event.shiftKey, event.ctrlKey);
         else if (code == "Slash" && !event.altKey)
             scaleToken(false, event.shiftKey, event.ctrlKey);
-
+        else if (code == "KeyK")
+            killToken();
     }
 
     if (mode == MODES.none){
@@ -143,9 +281,15 @@ function keyPressed(event){
             saveVTT();
         }
 
+        if (code == "KeyV" && event.ctrlKey){
+            let img = clipboard.readImage();
+            if (img.toDataURL)
+                addExternal(img.toDataURL());
+        }
+
         // Remove token
         if (code == "Delete" || code == "Backspace")
-            if (event.shiftKey)
+            if (event.shiftKey || event.ctrlKey)
                 removeToken(true);
             else
                 removeToken(false);
@@ -201,6 +345,18 @@ function keyPressed(event){
             measurex = mousex;
             measurey = mousey;
             mode = MODES.measure;
+        } else if (code == "KeyN"){
+            measurex = mousex;
+            measurey = mousey;
+            mode = MODES.cube;
+        } else if (code == "KeyV" && !event.ctrlKey){
+            measurex = mousex;
+            measurey = mousey;
+            mode = MODES.cone;
+        } else if (code == "KeyC"){
+            measurex = mousex;
+            measurey = mousey;
+            mode = MODES.circle;
         }
     
     }
@@ -214,6 +370,16 @@ function keyReleased(event){
 
     if (code == "KeyM" && mode == MODES.measure){
         mode = MODES.none;
+        measureWidth = 0;
+    } else if (code == "KeyN" && mode == MODES.cube){
+        mode = MODES.none;
+        measureWidth = 0;
+    } else if (code == "KeyC" && mode == MODES.circle){
+        mode = MODES.none;
+        measureWidth = 0;
+    } else if (code == "KeyV" && mode == MODES.cone){
+        mode = MODES.none;
+        measureWidth = 0;
     }
     if (code == "Space")
         spacePressed = false;
@@ -224,12 +390,12 @@ function keyReleased(event){
 function addEnemy(n){
     if (config.enemies){
         let nParse = parseInt(n)
-        if (config.enemies.length >= nParse){
-            addToken(config.enemies[nParse - 1].src, config.enemies[nParse - 1].name)
+        if (config.enemies && config.enemies[nParse] != null){
+            addToken(config.localDir + "\\" + config.enemies[nParse].src, config.enemies[nParse].name, config.enemies[nParse].scale)
             return;
         }
     } 
-    addToken("./config/enemies/"+n+".png", lang.enemy + " " + n, 1);
+    addToken(app.getAppPath() + "/config/enemies/"+n+".png", lang.enemy + " " + n, 1);
 }
 
 // Puts a hero token from the config file on the table, if available 
@@ -238,7 +404,7 @@ function addHero(n){
         addToken(config.localDir + "\\" + config.localHeroes[n].src, config.localHeroes[n].name, config.localHeroes[n].scale)
         return;
     } else if (config.heroes && config.heroes[n] != null){
-        addToken("./config/heroes/" + config.heroes[n].src, config.heroes[n].name, config.heroes[n].scale)
+        addToken(app.getAppPath() + "/config/heroes/" + config.heroes[n].src, config.heroes[n].name, config.heroes[n].scale)
         return;
     }
 }
@@ -268,10 +434,11 @@ function addToken(path, name, scale){
 function addBackground(def = false){
     let src;
     if (def){
-        console.log(config.localDir + "\\" + config.background)
         src = config.localDir + "\\" + config.background;
     } else {
         src = loadImageFile();
+        if (!src)
+            return;
     }
     image = new Image();
     try{
@@ -286,6 +453,56 @@ function addBackground(def = false){
             let {x: tokX, y: tokY} = mouseToTransform(mousex, mousey);
             token.center(tokX, tokY)
             backgrounds.push(token);
+        }
+    }
+}
+
+function dropImage(event){
+    event.preventDefault();
+    event.stopPropagation();
+
+    
+    for (const f of event.dataTransfer.files) {
+        let segments = f.path.split("\\");
+        let name = segments[segments.length - 1]
+        let nextsegs = name.split(".")
+        let filetype = nextsegs[nextsegs.length - 1];
+        if (filetype == "gif" || filetype == "png" || filetype == "jpg" || filetype == "jpeg")
+            addExternal("data:image/png;base64," + fs.readFileSync(f.path).toString('base64'))
+        }
+}
+
+// Adds an image from external source (clipboard, drag and drop) that needs to be determined if token or background
+function addExternal(imageData){
+    if (displayExternal()){
+        let image = assignImage(imageData);
+        if (image){
+            image.onload = function(){
+                let token = new CharToken(image, "Character", config.gridSize, 1);
+                let {x: tokX, y: tokY} = mouseToTransform(mousex, mousey);
+                token.center(tokX, tokY);
+                tokens.push(token);
+            }
+        }
+    } else {
+        let image = assignImage(imageData);
+        if (image){
+            image.onload = function(){
+                let token = new CharToken(image, "background", config.gridSize, -1);
+                let {x: tokX, y: tokY} = mouseToTransform(mousex, mousey);
+                token.center(tokX, tokY)
+                backgrounds.push(token);
+            }
+        }
+    }
+}
+
+function killToken(){
+    for (var i = tokens.length - 1; i >= 0; i--) {
+        if (mouseOverToken(tokens[i])){
+            tokens[i].killed = !tokens[i].killed;
+            tokens[i].updateImage();
+            return true;
         }
     }
 }
@@ -353,30 +570,56 @@ function scaleToken(plus, chunk, isBackground){
     }
 }
 
-function rotateToken(forwards, chunk){
+function rotateToken(forwards, chunk, isBackground){
     let deg = 10;
     if (!forwards)
         deg *= -1;
-    for (var i = tokens.length - 1; i >= 0; i--) {
-        let token = active;
-        if (mouseOverToken(tokens[i]) || mode == MODES.drag){
-            if (!mode == MODES.drag)
-                token = tokens[i];
-            tokens.splice(i, 1)
-            tokens.push(token)
-            if(!chunk){
-                token.rot += deg * (Math.PI / 180);
-                token.rot = token.rot % (2*Math.PI);
-            } else {
-                token.rot = Math.round(token.rot / (Math.PI / 2)) * (Math.PI / 2);
-                if (forwards)
-                    token.rot += Math.PI / 2;
-                else
-                    token.rot -= Math.PI / 2;
-                token.rot = token.rot % (2*Math.PI);
+    if (isBackground){
+        console.log("TRUE")
+        for (var i = backgrounds.length - 1; i >= 0; i--) {
+            let token = activeBackground;
+            if (mouseOverToken(backgrounds[i]) || mode == MODES.drag){
+                if (!mode == MODES.drag)
+                    token = backgrounds[i];
+                backgrounds.splice(i, 1)
+                backgrounds.push(token)
+                if(!chunk){
+                    token.rot += deg * (Math.PI / 180);
+                    token.rot = token.rot % (2*Math.PI);
+                } else {
+                    token.rot = Math.round(token.rot / (Math.PI / 2)) * (Math.PI / 2);
+                    if (forwards)
+                        token.rot += Math.PI / 2;
+                    else
+                        token.rot -= Math.PI / 2;
+                    token.rot = token.rot % (2*Math.PI);
+                }
+                token.updateImage();
+                return true;
             }
-            token.updateImage();
-            return true;
+        }
+    } else {
+        for (var i = tokens.length - 1; i >= 0; i--) {
+            let token = active;
+            if (mouseOverToken(tokens[i]) || mode == MODES.drag){
+                if (!mode == MODES.drag)
+                    token = tokens[i];
+                tokens.splice(i, 1)
+                tokens.push(token)
+                if(!chunk){
+                    token.rot += deg * (Math.PI / 180);
+                    token.rot = token.rot % (2*Math.PI);
+                } else {
+                    token.rot = Math.round(token.rot / (Math.PI / 2)) * (Math.PI / 2);
+                    if (forwards)
+                        token.rot += Math.PI / 2;
+                    else
+                        token.rot -= Math.PI / 2;
+                    token.rot = token.rot % (2*Math.PI);
+                }
+                token.updateImage();
+                return true;
+            }
         }
     }
     return false;
@@ -385,6 +628,7 @@ function rotateToken(forwards, chunk){
 function zoom(event){
     if (mode != MODES.none)
         return;
+    zoomCounter = 10;
     if (event.altKey){
         let amount = (Math.min(Math.max(0.8, 1 + (event.deltaY * config.gridScrollSpeed )), 1.3) - 1) * config.gridSize
         scaleGrid(amount, false)
@@ -499,4 +743,10 @@ window.addEventListener('keyup', keyReleased);
 window.addEventListener('mousedown', mousedown);
 window.addEventListener('mouseup', mouseup);
 window.addEventListener('blur', (event) => {spacePressed = false;});
+document.addEventListener('drop', dropImage);
 window.onwheel = zoom;
+
+document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });

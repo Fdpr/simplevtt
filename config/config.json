@@ -1,23 +1,69 @@
 {
-    "background": null,
     "backgroundColor": "rgb(100, 100, 100)",
     "gridSize": 50,
     "showGrid": true,
     "gridOffsetX": 0,
     "gridOffsetY": 0,
+    "gridColor": "black",
     "convert": 0.3048,
     "metric": "m",
-    "scrollSpeed": 0.001,
-    "heroes": [
-        {
-            "name": "Günther",
-            "src": "man.png",
+    "measureColor": "red",
+    "aoeStroke": "rgba(255, 0, 0, 1)",
+    "aoeFill": "rgba(255, 160, 160, .5)",
+    "textStyle": "sans-serif",
+    "textSize": 16,
+    "textColor": "black",
+    "textBoxStroke": "black",
+    "textBoxFill": "grey",
+    "scrollSpeed": 0.005,
+    "gridScrollSpeed": 0.005,
+    "killColor": "rgb(128, 50, 50)",
+    "killOpacity": 0.75,
+    "heroes": {
+        "1": {
+            "name": "hero1",
+            "src": "1.png",
             "scale": 1
         },
-        {
-            "name": "Pferd",
-            "src": "horse.png",
+        "2": {
+            "name": "hero2",
+            "src": "2.png",
+            "scale": 1
+        },
+        "3": {
+            "name": "hero3",
+            "src": "3.png",
+            "scale": 1
+        },
+        "4": {
+            "name": "hero4",
+            "src": "4.png",
+            "scale": 1
+        },
+        "5": {
+            "name": "hero5",
+            "src": "5.png",
+            "scale": 1
+        },
+        "6": {
+            "name": "hero6",
+            "src": "6.png",
+            "scale": 1
+        },
+        "7": {
+            "name": "hero7",
+            "src": "7.png",
+            "scale": 1
+        },
+        "8": {
+            "name": "hero8",
+            "src": "8.png",
+            "scale": 1
+        },
+        "9": {
+            "name": "hero9",
+            "src": "9.png",
             "scale": 1
         }
-    ]
+    }
 }

@@ -79,4 +79,39 @@ function roundFromZero(r) {
         return Math.round(r)-1;
     else
         return Math.round(r)+1;
- }
+}
+
+function magnitude(x, y){
+    return Math.sqrt((x*x) + (y*y))
+}
+
+ // Adjust grid offset from center after scaling or moving grid
+function refreshGridOffset(deltax, deltay){
+    config.gridOffsetX = (config.gridOffsetX + deltax) % config.gridSize;
+    config.gridOffsetY = (config.gridOffsetY + deltay) % config.gridSize;
+}
+
+// Creates an image element with correct src
+function assignImage(src){
+    image = new Image();
+    try{     
+        image.src = src;
+    }catch(error){
+        displayResourceError();
+        return false;
+    }
+    return image;
+}
+
+// If a file cannot be loaded
+function displayResourceError(){
+    dialog.showMessageBoxSync({message:lang.resourceError, type:"error", buttons:[lang.okay], title:lang.resourceErrorTitle})
+}
+
+function displayJSONError(){
+    dialog.showMessageBoxSync({message:lang.JSONError, type:"error", buttons:[lang.okay], title:lang.JSONErrorTitle})
+}
+
+function displayExternal(){
+    return (dialog.showMessageBoxSync({message: lang.external, type: "question", buttons:[lang.token, lang.background], title:lang.externalTitle}) == 0)
+}

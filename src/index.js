@@ -18,11 +18,13 @@ let mainWindow;
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
+    icon:'src/icon.png',
     width: 800,
     height: 600,
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false,
+      contextIsolation: false
   }
   });
 
@@ -40,13 +42,12 @@ const createWindow = () => {
     }
   })
 
+  // mainWindow.openDevTools();
+
   require("@electron/remote/main").enable(mainWindow.webContents)
 
   // and load the index.html of the app.
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
 };
 
 // This method will be called when Electron has finished

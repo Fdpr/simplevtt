@@ -9,17 +9,25 @@ class CharToken {
     gridScale;
     longerSide;
     isSelected = false;
+    killed = false;
 
     constructor(image, name, grid, scale){
-        this.base = image;
-        this.image = image;
         this.name = name;
         if(scale)
             this.scale = scale;
+        this.refreshImage(image);
+        if (scale == -1)
+            this.scale = this.longerSide / config.gridSize;
+        this.updateGrid(grid);
+    }
+
+    // Sets the image of the token and refreshes accordingly
+    refreshImage(image){
+        this.base = image;
+        this.image = image;
         this.longerSide = this.base.width;
         if (this.base.width < this.base.height)
             this.longerSide = this.base.height;
-        this.updateGrid(grid);
     }
 
     // Adjusts base scale of the image to adhere to the grid
@@ -41,11 +49,34 @@ class CharToken {
         this.image.width = Math.sqrt(2*this.longerSide*this.longerSide);
         this.image.height = this.image.width;
         let ictx = this.image.getContext("2d");
+        ictx.globalAlpha = 1;
         ictx.translate(this.image.width/2, this.image.height/2);
         ictx.rotate(this.rot);
         ictx.translate(-(this.image.width/2), -(this.image.height/2));
         ictx.translate((this.image.width - this.base.width)/2, (this.image.height - this.base.height)/2);
         ictx.drawImage(this.base, 0, 0);
+        if (this.killed){
+            let buffer = document.createElement("canvas");
+            buffer.width = Math.sqrt(2*this.longerSide*this.longerSide);
+            buffer.height = this.image.width;
+            let bx = buffer.getContext("2d");
+            bx.translate(this.image.width/2, this.image.height/2);
+            bx.rotate(this.rot);
+            bx.translate(-(this.image.width/2), -(this.image.height/2));
+            bx.translate((this.image.width - this.base.width)/2, (this.image.height - this.base.height)/2);
+            bx.drawImage(this.base, 0, 0);
+
+            bx.fillStyle = config.killColor;
+            bx.fillRect(0,0,buffer.width,buffer.height);
+            bx.globalCompositeOperation = "destination-atop";
+            bx.drawImage(this.base, 0, 0);
+
+            ictx.globalAlpha = config.killOpacity;
+            ictx.save();
+            ictx.setTransform(1, 0, 0, 1, 0, 0);
+            ictx.drawImage(buffer,0,0);
+            ictx.restore();
+        }
     }
 
     // Center token around coordinate
@@ -63,10 +94,6 @@ class CharToken {
     }
 }
 
-class Background{
-
-}
-
 // All the modes that the program can be in, possibly blocking
 const MODES = {none: 0, // No continuous action is happening, nothing is being blocked
                drag: 1, // A token is being dragged, every action should be blocked
@@ -75,5 +102,6 @@ const MODES = {none: 0, // No continuous action is happening, nothing is being b
                circle: 4,
                cone: 5,
                cube: 6,
-               gridDrag: 7 // User is dragging the grid, every actio nshould be blocked
+               gridDrag: 7, // User is dragging the grid, every action should be blocked
+               backgroundDrag: 8 // User is dragging a background image, every action should be blocked
             };
