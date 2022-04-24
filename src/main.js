@@ -1,5 +1,10 @@
-const { dialog } = require('@electron/remote')
+const { dialog } = require('@electron/remote');
+// var s = require("serialijse");
 const fs = require('fs')
+
+var webFrame = require('electron').webFrame;
+
+webFrame.setVisualZoomLevelLimits(1, 1)
 
 var lang = loadLanguage();
 var config = loadConfig();
@@ -17,11 +22,11 @@ var tokens = [] // List of Tokens
 var active = null // current Token
 
 var backgrounds = [] // background images
-var background = new Image();
-background.src = "data:image/xxx;base64," + fs.readFileSync("./res/background.png").toString('base64');
+var activeBackground = null // current background image
+
 var mode = MODES.none;
 
-var spacePressed = false;
+var spacePressed = false; // needs to be kept to track dragging mode triggered by space bar
 
 // Handles all the rendering
 function draw(){
@@ -45,7 +50,9 @@ function renderToken(token){
 
 function renderBackground(){
     fillCanvas(config.backgroundColor);
-    ctx.drawImage(background, 0, 0);
+
+    for(bgr of backgrounds)
+        renderToken(bgr);
     // Draw the Grid
     if (config.showGrid){
         let {x: origx, y:origy} = mouseToTransform(0, 0);
@@ -87,6 +94,8 @@ function renderMeasure(){
 
 function keyPressed(event){
 
+    event.preventDefault();
+
     let name = event.key;
     let code = event.code;
 
@@ -107,17 +116,39 @@ function keyPressed(event){
         
         // Scale up Token
         else if (code == "BracketRight" && !event.altKey)
-            scaleToken(true, event.shiftKey);
+            scaleToken(true, event.shiftKey, event.ctrlKey);
         else if (code == "Slash" && !event.altKey)
-            scaleToken(false, event.shiftKey);
+            scaleToken(false, event.shiftKey, event.ctrlKey);
 
     }
 
     if (mode == MODES.none){
 
+        // load config or state
+        if (code == "KeyO"){
+            let {lconfig, vtt} = loadLocalConfig();
+            if (lconfig){
+                config = {...config, ...lconfig};
+                if (lconfig.background)
+                    addBackground(true);
+            }
+            else if (vtt){
+                backgrounds = vtt.backgrounds;
+                tokens = vtt.tokens;
+                config = vtt.config;
+            }
+        }
+
+        if (code == "KeyS"){
+            saveVTT();
+        }
+
         // Remove token
         if (code == "Delete" || code == "Backspace")
-            removeToken();
+            if (event.shiftKey)
+                removeToken(true);
+            else
+                removeToken(false);
 
         // Load a token from image
         if (name == "l"){
@@ -136,21 +167,18 @@ function keyPressed(event){
             draw();
         }
 
+        // Add a background image
+        if (code == "KeyB")
+            addBackground();
+
         // Change grid size
-        let gridDelta = 1;
+        let gridDelta = -1;
         if (event.ctrlKey)
             gridDelta *= 5;
         if (code == "BracketRight" && event.altKey)
-        {
-            config.gridSize += gridDelta;
-            for (token of tokens)
-                token.updateGrid(config.gridSize);
-        }
-        else if (code == "Slash" && event.altKey){
-            config.gridSize = Math.max(2, config.gridSize - gridDelta);
-            for (token of tokens)
-                token.updateGrid(config.gridSize);
-        }
+            scaleGrid(gridDelta, true);
+        else if (code == "Slash" && event.altKey)
+            scaleGrid(-gridDelta, true);
 
         // Toggle grid
         if (name == "g")
@@ -206,16 +234,16 @@ function addEnemy(n){
 
 // Puts a hero token from the config file on the table, if available 
 function addHero(n){
-    if (config.heroes){
-        let nParse = parseInt(n)
-        if (config.heroes.length >= nParse){
-            addToken("./config/heroes/" + config.heroes[nParse - 1].src, config.heroes[nParse - 1].name, config.heroes[nParse - 1].scale)
-            return;
-        }
-    } 
+    if (config.localHeroes && config.localHeroes[n] != null){
+        addToken(config.localDir + "\\" + config.localHeroes[n].src, config.localHeroes[n].name, config.localHeroes[n].scale)
+        return;
+    } else if (config.heroes && config.heroes[n] != null){
+        addToken("./config/heroes/" + config.heroes[n].src, config.heroes[n].name, config.heroes[n].scale)
+        return;
+    }
 }
 
-// Loads a Token and 
+// Loads a Token and places it on board
 function addToken(path, name, scale){
     if (!scale){
         scale = 1;
@@ -224,13 +252,7 @@ function addToken(path, name, scale){
     if (path == null)
         image = loadImage();
     else{
-        image = new Image();
-        try{     
-            image.src = "data:image/png;base64," + fs.readFileSync(path).toString('base64');
-        }catch(error){
-            dialog.showMessageBoxSync({message:lang.resourceError, type:"error", buttons:[lang.okay], title:lang.resourceErrorTitle})
-            return false;
-        }
+        image = assignImage("data:image/png;base64," + fs.readFileSync(path).toString('base64'));
     }
     if (image){
         image.onload = function(){
@@ -242,38 +264,93 @@ function addToken(path, name, scale){
     }
 }
 
-function removeToken(){
-    for (var i = tokens.length - 1; i >= 0; i--) {
-        if (mouseOverToken(tokens[i])){
-            tokens.splice(i, 1)
-            return true;
+// Adds a new background and puts it on the board
+function addBackground(def = false){
+    let src;
+    if (def){
+        console.log(config.localDir + "\\" + config.background)
+        src = config.localDir + "\\" + config.background;
+    } else {
+        src = loadImageFile();
+    }
+    image = new Image();
+    try{
+        image.src = "data:image/png;base64," + fs.readFileSync(src).toString('base64');
+    }catch(error){
+        displayResourceError();
+        return false;
+    }
+    if (image){
+        image.onload = function(){
+            let token = new CharToken(image, "background", config.gridSize, -1);
+            let {x: tokX, y: tokY} = mouseToTransform(mousex, mousey);
+            token.center(tokX, tokY)
+            backgrounds.push(token);
         }
     }
-    return false;
 }
 
-function scaleToken(plus, chunk){
+function removeToken(isBackground){
+    if (isBackground){
+        for (var i = backgrounds.length - 1; i >= 0; i--) {
+            if (mouseOverToken(backgrounds[i])){
+                backgrounds.splice(i, 1)
+                return true;
+            }
+        }
+        return false; 
+    }
+    else {
+        for (var i = tokens.length - 1; i >= 0; i--) {
+            if (mouseOverToken(tokens[i])){
+                tokens.splice(i, 1)
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+function scaleToken(plus, chunk, isBackground){
     step = .1;
     if (!plus)
         step *= -1;
     if (chunk)
         step *= 10;
-    for (var i = tokens.length - 1; i >= 0; i--) {
-        let token = active;
-        if (mouseOverToken(tokens[i]) || mode == MODES.drag){
-            if (!mode == MODES.drag)
-                token = tokens[i];
-            tokens.splice(i, 1)
-            tokens.push(token)
-            if (chunk)
-                token.setScale(Math.max(.1, Math.round(token.scale) + step));
-            else
-                token.setScale(Math.max(.1, token.scale + step));
-            token.updateImage();
-            return true;
+    if (isBackground){
+        for (var i = backgrounds.length - 1; i >= 0; i--) {
+            let token = activeBackground;
+            if (mouseOverToken(backgrounds[i]) || mode == MODES.backgroundDrag){
+                if (mode != MODES.backgroundDrag)
+                    token = backgrounds[i];
+                backgrounds.splice(i, 1)
+                backgrounds.push(token)
+                if (chunk)
+                    token.setScale(Math.max(.1, Math.round(token.scale) + step));
+                else
+                    token.setScale(Math.max(.1, token.scale + step));
+                token.updateImage();
+                return true;
+            }
         }
+    }else {
+        for (var i = tokens.length - 1; i >= 0; i--) {
+            let token = active;
+            if (mouseOverToken(tokens[i]) || mode == MODES.drag){
+                if (!mode == MODES.drag)
+                    token = tokens[i];
+                tokens.splice(i, 1)
+                tokens.push(token)
+                if (chunk)
+                    token.setScale(Math.max(.1, Math.round(token.scale) + step));
+                else
+                    token.setScale(Math.max(.1, token.scale + step));
+                token.updateImage();
+                return true;
+            }
+        }
+        return false;
     }
-    return false;
 }
 
 function rotateToken(forwards, chunk){
@@ -308,17 +385,42 @@ function rotateToken(forwards, chunk){
 function zoom(event){
     if (mode != MODES.none)
         return;
+    if (event.altKey){
+        let amount = (Math.min(Math.max(0.8, 1 + (event.deltaY * config.gridScrollSpeed )), 1.3) - 1) * config.gridSize
+        scaleGrid(amount, false)
+        draw();
+        return;
+    }
     let scale = getTransformScale(ctx.getTransform());
     let delta = -event.deltaY;
     if ((scale > 10 && delta > 0) || (scale < .1 && delta < 0))
         return;
-    let amount = Math.min(Math.max(0.8, 1 + (delta * 0.005)), 1.3);
+    let amount = Math.min(Math.max(0.8, 1 + (delta * config.scrollSpeed)), 1.3);
     let { x:nx, y:ny } = mouseToTransform(mousex, mousey);
     ctx.translate(nx, ny)
     ctx.scale(amount, amount);
     ctx.translate(-nx, -ny)
     
     draw();
+}
+
+function scaleGrid(delta, roundToInt){
+    let {x, y} = mouseToTransform(mousex, mousey);
+    let oldRelX = ((x - config.gridOffsetX) % (config.gridSize)) / config.gridSize;
+    let oldRelY = ((y - config.gridOffsetY) % (config.gridSize)) / config.gridSize;
+
+    if (roundToInt)
+        config.gridSize = Math.round(Math.max(2, config.gridSize - delta));
+    else
+        config.gridSize = Math.max(2, config.gridSize - delta);
+    let newRelX = (x % (config.gridSize)) / config.gridSize;
+    let newRelY = (y % (config.gridSize)) / config.gridSize;
+    config.gridOffsetX = -(oldRelX - newRelX) * config.gridSize;
+    config.gridOffsetY = -(oldRelY - newRelY) * config.gridSize;
+
+    refreshGridOffset(0, 0);
+    for (token of tokens)
+        token.updateGrid(config.gridSize);
 }
 
 function mousedown(event){
@@ -329,6 +431,17 @@ function mousedown(event){
         } else if (event.altKey) {
             mode = MODES.gridDrag;
             draw();
+        } else if (event.shiftKey) {
+            for (var i = backgrounds.length - 1; i >= 0; i--) {
+                if (mouseOverToken(backgrounds[i])){
+                    activeBackground = backgrounds[i];
+                    mode = MODES.backgroundDrag;
+                    backgrounds.splice(i, 1)
+                    backgrounds.push(activeBackground)
+                    draw();
+                    return;
+                }
+            }
         }
         else {
             for (var i = tokens.length - 1; i >= 0; i--) {
@@ -347,7 +460,8 @@ function mousedown(event){
 
 function mouseup(){
     active = null;
-    if (mode == MODES.drag || mode == MODES.pan || mode == MODES.gridDrag)
+    activeBackground = null
+    if (mode == MODES.drag || mode == MODES.pan || mode == MODES.gridDrag || mode == MODES.backgroundDrag)
         mode = MODES.none;
     
     draw();
@@ -369,8 +483,11 @@ function mouserefresh(event){
         ctx.translate(deltax, deltay);
     } else if (mode == MODES.gridDrag){
         let { x:deltax, y:deltay } = mouseToTransform(mousex-oldx, mousey-oldy, true);
-        config.gridOffsetX = (config.gridOffsetX + deltax) % config.gridSize;
-        config.gridOffsetY = (config.gridOffsetY + deltay) % config.gridSize;
+        refreshGridOffset(deltax, deltay);
+    } else if (mode == MODES.backgroundDrag){
+        let { x:deltax, y:deltay } = mouseToTransform(mousex-oldx, mousey-oldy, true);
+        activeBackground.x += deltax;
+        activeBackground.y += deltay;
     }
     draw();
 }
